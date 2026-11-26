@@ -132,6 +132,32 @@ label.lbl,.lbl{display:block;font-size:13px;font-weight:500;color:var(--muted);m
 .sk-tab{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid transparent;background:transparent;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);transition:background var(--dur),color var(--dur)}
 .sk-tab:hover{color:var(--text)}
 .sk-tab[aria-selected="true"]{background:var(--card2);color:var(--text);border-color:var(--line2)}
+.sk-tab .ic{width:14px;height:14px;margin-right:4px;vertical-align:-2px}
+body[data-role="alumno"] #tab-esteban{opacity:.55}
+.sk-out{min-height:44px;padding:0 12px;border-radius:999px;border:0;background:transparent;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;margin-left:4px}
+body.logged-out .sk-tabs,body.logged-out .sw,body.logged-out .sk-out{display:none}
+/* Pantalla de ingreso */
+.login{position:fixed;inset:var(--bar) 0 0 0;z-index:100;overflow:auto;display:flex;align-items:center;justify-content:center;padding:24px 20px;
+  background:radial-gradient(90% 55% at 50% 0%,rgba(255,90,31,.35),rgba(255,138,61,.08) 45%,transparent 70%),var(--bg)}
+.login[hidden]{display:none}
+.lg-card{width:100%;max-width:380px}
+.lg-brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;margin-bottom:36px}
+.lg-brand .dot{width:10px;height:10px;border-radius:50%;background:var(--or-grad);box-shadow:0 0 12px rgba(255,90,31,.8)}
+.lg-card h1{font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1.05}
+.lg-sub{color:var(--muted);font-size:15px;margin:10px 0 28px;line-height:1.45}
+.lg-sub b{color:var(--text);font-weight:600}
+.lg-in{height:56px;font-size:17px}
+.lg-code{height:68px;font-size:32px;letter-spacing:.5em;text-align:center;font-variant-numeric:tabular-nums;padding-left:.5em}
+.lg-btn{margin-top:16px;min-height:56px}
+.lg-err{color:var(--amb);font-size:14px;margin-top:10px}
+.lg-foot{color:var(--muted);font-size:13px;text-align:center;margin-top:18px;line-height:1.5}
+.lg-demo-t{opacity:.75}
+.lg-demo{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:28px;font-size:13px;color:var(--muted)}
+.lg-demo button{min-height:40px;padding:0 14px;border-radius:999px;border:1px dashed var(--line2);background:transparent;color:var(--text);font-size:13px;cursor:pointer}
+.lg-back{display:inline-flex;align-items:center;gap:6px;min-height:44px;margin-bottom:24px;padding:0;border:0;background:transparent;color:var(--muted);font-size:14px;cursor:pointer}
+.lg-back .ic{width:18px;height:18px}
+.lg-resend{display:block;margin:12px auto 0;min-height:44px;border:0;background:transparent;color:var(--text);font-size:14px;text-decoration:underline;cursor:pointer}
+.lg-resend:disabled{color:var(--muted);text-decoration:none;cursor:default}
 .sw{margin-left:auto;min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:0 14px 0 8px;border-radius:999px;border:1px solid var(--line2);background:var(--card);cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
 .sw .knob{width:30px;height:18px;border-radius:99px;background:#3A3A40;position:relative;transition:background var(--dur)}
 .sw .knob::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--text);transition:transform var(--dur)}
@@ -575,7 +601,11 @@ button.wkchip{cursor:pointer;font:inherit;min-height:36px}
     <button class="sk-tab" role="tab" id="tab-esteban" aria-selected="false" data-act="view" data-v="esteban">Vista Esteban</button>
   </div>
   <button class="sw" id="sw-offline" role="switch" aria-checked="false" data-act="offline"><span class="knob"></span><span class="swl">Sin <span class="swl-long">internet</span><span aria-hidden="true" class="swl-short" style="display:none">red</span></span></button>
+  <button class="sk-out" data-act="logout" aria-label="Cerrar sesión">Salir</button>
 </div>
+
+<!-- INGRESO: email + código de 6 números -->
+<section class="login" id="login" aria-label="Ingresar" hidden></section>
 
 <!-- VISTA ALUMNO -->
 <section class="stage" id="v-alumno" aria-label="Vista alumno">
@@ -1287,7 +1317,58 @@ function bModelos(){
 /* =====================================================================
    8. LÓGICA: ACCIONES (clicks) Y EVENTOS
    ===================================================================== */
+/* --- Ingreso con email y código (simulado en el boceto) ---
+   En la app real: Supabase Auth signInWithOtp({email, shouldCreateUser:false}) + verifyOtp.
+   Solo entran emails que Esteban dio de alta. La sesión queda guardada en el celular. */
+const PROFE_EMAIL='esteban@ejemplo.com';
+const ALUMNO_EMAILS=['martina@ejemplo.com','joaquin@ejemplo.com','camila@ejemplo.com','tomas@ejemplo.com','lucia@ejemplo.com','nicolas@ejemplo.com','valentina@ejemplo.com','federico@ejemplo.com'];
+const L={step:'email',email:'',err:'',wait:0,iv:null};
+let SES=null;
+try{SES=JSON.parse(localStorage.getItem('boceto-esteban-sesion')||'null');}catch(e){SES=null;}
+function roleOf(em){em=em.trim().toLowerCase(); if(em===PROFE_EMAIL) return 'profe'; if(ALUMNO_EMAILS.includes(em)) return 'alumno'; return null;}
+function renderLogin(){
+  const el=$('#login');
+  if(L.step==='email'){
+    el.innerHTML=`<div class="lg-card">
+      <div class="lg-brand"><i class="dot" aria-hidden="true"></i>Esteban Hueicha</div>
+      <h1>Entrá a tu rutina</h1>
+      <p class="lg-sub">Te mandamos un código a tu email. Sin contraseñas.</p>
+      <label class="lbl" for="lg-email">Tu email</label>
+      <input class="in lg-in" id="lg-email" type="email" inputmode="email" autocomplete="email" placeholder="nombre@email.com" value="${esc(L.email)}">
+      ${L.err?`<p class="lg-err" role="alert">${esc(L.err)}</p>`:''}
+      <button class="btn btn-primary btn-block lg-btn" data-act="lg-send">Enviarme el código</button>
+      <p class="lg-foot">Solo pueden entrar los alumnos que sumó Esteban.</p>
+      <div class="lg-demo"><span>Boceto · probar como</span><button data-act="lg-fill" data-e="martina@ejemplo.com">Alumna</button><button data-act="lg-fill" data-e="${PROFE_EMAIL}">Esteban</button></div>
+    </div>`;
+    setTimeout(()=>{const i=$('#lg-email'); if(i&&!L.email) i.focus();},50);
+  }else{
+    el.innerHTML=`<div class="lg-card">
+      <button class="lg-back" data-act="lg-back">${icon('back')}<span>Usar otro email</span></button>
+      <h1>Revisá tu email</h1>
+      <p class="lg-sub">Te mandamos un código de 6 números a <b>${esc(L.email)}</b></p>
+      <label class="lbl" for="lg-code">Código</label>
+      <input class="in lg-code" id="lg-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······" aria-describedby="lg-hint">
+      ${L.err?`<p class="lg-err" role="alert">${esc(L.err)}</p>`:''}
+      <button class="btn btn-primary btn-block lg-btn" data-act="lg-verify">Entrar</button>
+      <button class="lg-resend" data-act="lg-resend" ${L.wait>0?'disabled':''}>${L.wait>0?`Reenviar código en ${L.wait} s`:'Reenviar código'}</button>
+      <p class="lg-foot" id="lg-hint">Vas a quedar conectado en este celular: no hace falta entrar cada vez.<br><span class="lg-demo-t">Boceto: cualquier código de 6 números sirve.</span></p>
+    </div>`;
+    setTimeout(()=>{const i=$('#lg-code'); if(i){i.focus(); i.addEventListener('input',()=>{i.value=i.value.replace(/\D/g,'').slice(0,6); if(i.value.length===6) ACTIONS['lg-verify']();});}},50);
+  }
+}
+function startWait(){clearInterval(L.iv); L.wait=30; L.iv=setInterval(()=>{L.wait--; const b=$('.lg-resend'); if(b){b.disabled=L.wait>0; b.textContent=L.wait>0?`Reenviar código en ${L.wait} s`:'Reenviar código';} if(L.wait<=0) clearInterval(L.iv);},1000);}
+function showLogin(){
+  document.body.classList.add('logged-out'); $('#login').hidden=false; $('#v-alumno').hidden=true; $('#v-esteban').hidden=true;
+  L.step='email'; L.err=''; renderLogin();
+}
+function enterApp(){
+  document.body.classList.remove('logged-out'); $('#login').hidden=true;
+  document.body.dataset.role=SES.role;
+  $('#tab-esteban').innerHTML=SES.role==='profe'?'Vista Esteban':`${icon('lock')}Vista Esteban`;
+  setView(SES.role==='profe'?'esteban':'alumno');
+}
 function setView(v){
+  if(v==='esteban'&&SES&&SES.role!=='profe'){toast('El panel es solo para Esteban');return;}
   S.view=v; clearTimer(); closeModal();
   $('#v-alumno').hidden=v!=='alumno'; $('#v-esteban').hidden=v!=='esteban';
   $('#tab-alumno').setAttribute('aria-selected',v==='alumno'); $('#tab-esteban').setAttribute('aria-selected',v==='esteban');
@@ -1298,6 +1379,23 @@ function setView(v){
 const ACTIONS={
   /* barra del boceto */
   view:b=>setView(b.dataset.v),
+  'lg-fill':b=>{L.email=b.dataset.e; L.err=''; renderLogin();},
+  'lg-send':()=>{
+    const em=($('#lg-email').value||'').trim().toLowerCase(); L.email=em;
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){L.err='Revisá el email: parece que le falta algo.';renderLogin();return;}
+    if(!roleOf(em)){L.err='Ese email no está habilitado. Pedile a Esteban que te sume.';renderLogin();return;}
+    L.err=''; L.step='code'; renderLogin(); startWait();
+  },
+  'lg-resend':()=>{if(L.wait>0) return; startWait(); L.err=''; toast('Te mandamos un código nuevo');},
+  'lg-back':()=>{L.step='email'; L.err=''; clearInterval(L.iv); renderLogin();},
+  'lg-verify':()=>{
+    const c=($('#lg-code')||{}).value||'';
+    if(!/^\d{6}$/.test(c)){L.err='El código tiene 6 números.';renderLogin();return;}
+    SES={email:L.email,role:roleOf(L.email)}; clearInterval(L.iv);
+    try{localStorage.setItem('boceto-esteban-sesion',JSON.stringify(SES));}catch(e){}
+    enterApp(); toast(SES.role==='profe'?'Hola, Esteban':'¡Hola, Martina!');
+  },
+  logout:()=>{SES=null; try{localStorage.removeItem('boceto-esteban-sesion');}catch(e){} clearTimer(); closeModal(); L.email=''; showLogin();},
   offline:b=>{
     S.offline=!S.offline; b.setAttribute('aria-checked',S.offline);
     if(S.offline) toast('Sin conexión simulada'); else flushQueue();
@@ -1527,7 +1625,7 @@ function edInput(t){
   const mq=window.matchMedia('(max-width:699px)');
   const sync=()=>{const sh=$('.swl-short');if(sh) sh.style.display=mq.matches?'inline':'none';};
   sync(); if(mq.addEventListener) mq.addEventListener('change',sync);
-  renderAlumno(true);
+  if(SES&&SES.role) enterApp(); else showLogin();
 })();
 </script>
 </body>
